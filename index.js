@@ -44,20 +44,17 @@ async function reservationReview(page) {
 
 async function checkSelectableDates(page, selectableDates, currentMonth) {
   let found = false;
-  let notified = false;
   for (let ele of selectableDates) {
     const text = await page.evaluate((element) => element.textContent, ele);
     const [booked, cap] = text.split("/");
     debugMode &&
       console.log("booked, cap", booked, cap, parseInt(booked) < parseInt(cap));
     if (parseInt(booked) < parseInt(cap)) {
-      if (!notified) {
-        notifier.notify({
-          title: "Found available date",
-          message: currentMonth,
-        });
-        notified = true;
-      }
+      notifier.notify({
+        title: "Found available date",
+        message: currentMonth,
+        sound: true,
+      });
       found = true;
     }
   }
