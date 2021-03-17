@@ -1,7 +1,7 @@
 const puppeteer = require("puppeteer");
-const player = require("play-sound")((opts = {}));
+const notifier = require("node-notifier");
 
-const debugMode = false;
+const debugMode = true;
 
 const sound = "./sounds/sonar.ogg";
 const entryUrl = "https://ppt.mfa.gov.cn/appo/index.html";
@@ -17,17 +17,14 @@ function sleep(ms) {
 }
 
 async function homePage(page) {
-  // await sleep(5000)
   if (page.$(".ui-button")) {
-    console.log("saw notification");
-    // await page.screenshot({ path: 'example.png' });
+    console.log("saw home page dialog");
     const [ele] = await page.$x('//*[@id="body"]/div[9]/div[3]/div/button');
     await ele.click();
     console.log("dismissed");
   }
 
   await page.click("#continueReservation");
-
   await page.type("#recordNumberHuifu", applicationNumber);
   await page.select("#questionIDHuifu", securityQuestion);
   await page.type("#answerHuifu", answer);
@@ -36,7 +33,6 @@ async function homePage(page) {
     '//*[@id="body"]/div[5]/div[3]/div/button[1]'
   );
   await subbmit.click();
-  // await sleep(50000)
 }
 
 async function reservationReview(page) {
@@ -45,25 +41,21 @@ async function reservationReview(page) {
   await ele.click();
 }
 
-async function checkSelectableDates(page, selectableDates) {
+async function checkSelectableDates(page, selectableDates, currentMonth) {
   let found = false;
-  let played = false;
+  let notified = false;
   for (let ele of selectableDates) {
     const text = await page.evaluate((element) => element.textContent, ele);
     const [booked, cap] = text.split("/");
     debugMode &&
-      console.log(
-        "booked, cap",
-        booked,
-        cap,
-        parseInt(booked) === parseInt(cap)
-      );
-    if (parseInt(booked) === parseInt(cap)) {
-      //   console.log("\u0007");
-
-      if (!played) {
-        player.play(sound);
-        played = true;
+      console.log("booked, cap", booked, cap, parseInt(booked) < parseInt(cap));
+    if (parseInt(booked) < parseInt(cap)) {
+      if (!notified) {
+        notifier.notify({
+          title: "Found available date",
+          message: currentMonth,
+        });
+        notified = true;
       }
       found = true;
     }
@@ -85,13 +77,18 @@ async function reservation(page) {
   let found = false;
   while (true) {
     const element = await page.$("h2");
-    const text = await page.evaluate((element) => element.textContent, element);
-    debugMode && console.log(`current month: ${text}`);
+    const currentMonth = await page.evaluate(
+      (element) => element.textContent,
+      element
+    );
+    debugMode && console.log(`current month: ${currentMonth}`);
 
     const selectableDates = await page.$$(".fc-event-title");
     debugMode && console.log(`selectable date: ${selectableDates.length}`);
-    found = found || (await checkSelectableDates(page, selectableDates));
-    if (text === "六月 2021") {
+    found =
+      (await checkSelectableDates(page, selectableDates, currentMonth)) ||
+      found;
+    if (currentMonth === "六月 2021") {
       break;
     }
 
@@ -102,7 +99,6 @@ async function reservation(page) {
     await sleep(100);
   }
   return found;
-  // if (page.$('h2'))
 }
 
 async function launch() {
