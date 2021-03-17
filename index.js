@@ -5,7 +5,8 @@ const debugMode = true;
 
 const sound = "./sounds/sonar.ogg";
 const entryUrl = "https://ppt.mfa.gov.cn/appo/index.html";
-const applicationNumber = "202102100415667";
+// const applicationNumber = "202102100415667";
+const applicationNumber = "202103170263170";
 const securityQuestion = "012D083B05E8426D9EA5B5619D08B495";
 const answer = "hongan";
 const consulateAddress = "13416bc41db64584b667ea76c90f7fb9";
@@ -88,7 +89,7 @@ async function reservation(page) {
     found =
       (await checkSelectableDates(page, selectableDates, currentMonth)) ||
       found;
-    if (currentMonth === "六月 2021") {
+    if (currentMonth === "五月 2021") {
       break;
     }
 
@@ -102,22 +103,23 @@ async function reservation(page) {
 }
 
 async function launch() {
-  const browser = await puppeteer.launch({ headless: false });
+  const browser = await puppeteer.launch({
+    headless: false,
+    defaultViewport: null,
+  });
+  const page = await browser.newPage();
+  await page.goto(entryUrl, { waitUntil: "domcontentloaded" });
+  await homePage(page);
+  await reservationReview(page);
+
   let foundAvailable = false;
   while (!foundAvailable) {
-    const page = await browser.newPage();
-    await page.setViewport({ width: 1366, height: 1366 });
-    await page.goto(entryUrl, { waitUntil: "domcontentloaded" });
-    await homePage(page);
-    await reservationReview(page);
     foundAvailable = await reservation(page);
     debugMode && console.log("foundAvailable", foundAvailable);
     if (!foundAvailable) {
-      console.log("Available date not found, close page and try in 5 seconds");
-      await page.close();
-      await sleep(5000);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await sleep(1000);
     }
-    // sleep 5 seconds
   }
 }
 
